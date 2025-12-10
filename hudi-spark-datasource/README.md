@@ -37,6 +37,7 @@ This repo contains the code that integrate Hudi with Spark. The repo is split in
 
 ## Spark 引擎一次 Upsert 写入流程（简要拆解）
 This section offers a brief Chinese-language breakdown of the Spark datasource upsert path for quick reference.
+High-level English summary: Spark DataSource (DefaultSource) → HoodieSparkSqlWriterInternal (merge configs, deduce UPSERT) → HoodieRecord conversion → SparkRDDWriteClient.upsert → commit & meta sync.
 1. **入口（DataFrameWriter -> DefaultSource）**：在 Spark 中执行 `df.write.format("hudi")...save(path)` 时，首先进入 `hudi-spark-common/src/main/scala/org/apache/hudi/DefaultSource.scala`（DataSource V1），随后调用 `HoodieSparkSqlWriter.write`。
 2. **参数合并与表元数据**：`HoodieSparkSqlWriterInternal.writeInternal` 会检查表是否存在、合并用户参数与表配置（例如表类型、索引、KeyGen 配置），并推断操作类型为 `UPSERT`（若用户未强制覆盖）。
 3. **构建 MetaClient 与 WriteClient**：根据表是否存在创建/加载 `HoodieTableMetaClient`，再通过 `DataSourceUtils.createHoodieClient` 生成 `SparkRDDWriteClient`，同时启动一次新的提交时间戳（`startCommit`）并校验必须使用 `KryoSerializer`。
