@@ -49,6 +49,16 @@ Hudi supports three types of queries:
  * **Incremental Query** - Provides a change stream with records inserted or updated after a point in time.
  * **Read Optimized Query** - Provides excellent snapshot query performance via purely columnar storage (e.g. [Parquet](https://parquet.apache.org/)).
 
+### Query scan logic (where to look in code)
+* **Snapshot / Read-optimized scans**: The Spark datasource plans files through [`HoodieFileIndex`](hudi-spark-datasource/hudi-spark-common/src/main/scala/org/apache/hudi/HoodieFileIndex.scala), which is built on `SparkHoodieTableFileIndex`.
+  * Handles partition pruning and metadata-table powered listings.
+  * Decides whether to include log files (for MOR snapshot) and honors `TIME_TRAVEL_AS_OF_INSTANT`.
+* **Incremental scans**: Copy-on-write uses [`IncrementalRelation`](hudi-spark-datasource/hudi-spark-common/src/main/scala/org/apache/hudi/IncrementalRelation.scala); merge-on-read uses [`MergeOnReadIncrementalRelation`](hudi-spark-datasource/hudi-spark-common/src/main/scala/org/apache/hudi/MergeOnReadIncrementalRelation.scala).
+  * Build a commit timeline from `BEGIN_INSTANTTIME` / `END_INSTANTTIME` (with state-transition handling).
+  * Collect affected fileIds from commit metadata and optionally fall back to a full table scan.
+  * Load only those file paths (with optional `INCR_PATH_GLOB`) and filter rows by commit time to emit the change stream.
+  * Incremental queries require meta fields to be enabled.
+
 Learn more about Hudi at [https://hudi.apache.org](https://hudi.apache.org)
 
 ## Building Apache Hudi from source
